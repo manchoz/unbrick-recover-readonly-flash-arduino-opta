@@ -29,17 +29,15 @@ POSSIBILITY OF SUCH DAMAGE.
 License: BSD-3-Clause
 */
 
-
-#include <stdint.h>
 #include <Arduino.h>
 #include <QSPI.h>
+#include <stdint.h>
 
 // this macro device two function that are called by mbed::os to redirect stdout (which printf uses)
 // to serial "stream"
 // Allowing using printf.
 #include <macros.h>
 REDIRECT_STDOUT_TO(Serial);
-
 
 // devine QSPI pins. MBED_CONF_QSPIF_QSPI_Ixxx are defined by selected device (e.g. OPTA)
 PinName io0 = MBED_CONF_QSPIF_QSPI_IO0;
@@ -54,7 +52,6 @@ int freq = MBED_CONF_QSPIF_QSPI_FREQ;
 mbed::QSPI qspi(io0, io1, io2, io3, sclk, csel, clock_mode);
 qspi_status_t status;
 
-
 // some helper
 static void _writeEnable();
 static bool _waitForReady();
@@ -62,7 +59,7 @@ static bool _waitForReady();
 // waits that QSPI flash is free to use (no other communiction active)
 bool _waitForReady()
 {
-    int retries = 10000; //10s
+    int retries = 10000; // 10s
 
     do {
         retries--;
@@ -70,20 +67,18 @@ bool _waitForReady()
 
         // read status
         status = qspi.command_transfer(0x05, -1, nullptr, 0, &buf[0], 1);
-        if (status)
-        {
+        if (status) {
             printf("ERROR: command_transfer() status: %d\n", status);
             return false;
         }
 
-        if(!(buf[0] & 0x01))
-        {
-          return true;
+        if (!(buf[0] & 0x01)) {
+            return true;
         }
 
         delay(1);
 
-    } while ( retries);
+    } while (retries);
 
     return false;
 }
@@ -96,30 +91,26 @@ void _writeEnable()
     printf("_writeEnable()\n");
 
     // flash must be free to use
-    if(!_waitForReady())
-    {
-      printf("ERROR: not ready (WIP==1)\n");
-      return;
+    if (!_waitForReady()) {
+        printf("ERROR: not ready (WIP==1)\n");
+        return;
     }
 
     // first enable write to status register. this sets the WEL bit in status register
     status = qspi.command_transfer(0x06, -1, nullptr, 0, nullptr, 0);
-    if (status)
-    {
+    if (status) {
         printf("command_transfer: %d\n", status);
     }
 
     // wait until transfer has finished
-    if(!_waitForReady())
-    {
-      printf("ERROR: not ready (WIP==1)\n");
-      return;
+    if (!_waitForReady()) {
+        printf("ERROR: not ready (WIP==1)\n");
+        return;
     }
 
-    //check WEL bit
+    // check WEL bit
     status = qspi.command_transfer(0x05, -1, nullptr, 0, buf, 1);
-    if (status)
-    {
+    if (status) {
         printf("ERROR: command_transfer() status: %d\n", status);
         return;
     }
@@ -130,21 +121,19 @@ bool configureQSPI()
     // tell stm32h7 qspi interface how to talk to qspi flash
     // This depends on the flash chip (see chip documentation)
     status = qspi.configure_format(
-      QSPI_CFG_BUS_SINGLE, QSPI_CFG_BUS_SINGLE,
-      QSPI_CFG_ADDR_SIZE_24,
-      QSPI_CFG_BUS_SINGLE,
-      QSPI_CFG_ADDR_SIZE_8,
-      QSPI_CFG_BUS_SINGLE, 0);
+        QSPI_CFG_BUS_SINGLE, QSPI_CFG_BUS_SINGLE,
+        QSPI_CFG_ADDR_SIZE_24,
+        QSPI_CFG_BUS_SINGLE,
+        QSPI_CFG_ADDR_SIZE_8,
+        QSPI_CFG_BUS_SINGLE, 0);
 
-    if (status)
-    {
+    if (status) {
         printf("ERROR: configure_format() status: %d\n", status);
         return false;
     }
 
     status = qspi.set_frequency(freq);
-    if (status)
-    {
+    if (status) {
         printf("ERROR: set_frequency() status: %d\n", status);
         return false;
     }
@@ -158,8 +147,7 @@ void readStatusRegister()
 
     char buf[3];
     status = qspi.command_transfer(0x05, -1, nullptr, 0, &buf[0], 1);
-    if (status)
-    {
+    if (status) {
         printf("ERROR: command_transfer() status: %d\n", status);
         return;
     }
@@ -180,8 +168,7 @@ void readStatusRegister()
     printf("    *Status Register Protect (SRP0): %d\n", (buf[0] & 0x80) ? 1 : 0);
 
     status = qspi.command_transfer(0x35, -1, nullptr, 0, &buf[1], 1);
-    if (status)
-    {
+    if (status) {
         printf("ERROR: command_transfer() status: %d\n", status);
         return;
     }
@@ -196,8 +183,7 @@ void readStatusRegister()
     printf("    SUS2: %d\n", (buf[1] & 0x80) ? 1 : 0);
 
     status = qspi.command_transfer(0x15, -1, nullptr, 0, &buf[2], 1);
-    if (status)
-    {
+    if (status) {
         printf("ERROR: command_transfer() status: %d\n", status);
         return;
     }
@@ -206,7 +192,6 @@ void readStatusRegister()
     printf("    DRV1: %d\n", (buf[2] & 0x40) ? 1 : 0);
 
     printf("\n");
-
 }
 
 // only possible if no HW protection is truned on.
@@ -217,35 +202,31 @@ void resetFlashProtection()
 {
     printf("resetFlashProtection()\n");
 
-    if(!_waitForReady())
-    {
-      printf("ERROR: not ready (WIP==1)\n");
-      return;
+    if (!_waitForReady()) {
+        printf("ERROR: not ready (WIP==1)\n");
+        return;
     }
 
     _writeEnable();
 
     char reg = 0; // 0x88; SRP0=1 und BP1
-    status = qspi.command_transfer( 0x01, -1, &reg, 1, nullptr, 0);
-    if (status)
-    {
+    status = qspi.command_transfer(0x01, -1, &reg, 1, nullptr, 0);
+    if (status) {
         printf("command_transfer: %d\n", status);
     }
 
     // wait until finished; else status register shows invalid values for other bits
-    if(!_waitForReady())
-    {
-      printf("ERROR: not ready (WIP==1)\n");
-      return;
+    if (!_waitForReady()) {
+        printf("ERROR: not ready (WIP==1)\n");
+        return;
     }
-
 }
-
 
 void setup()
 {
     Serial.begin(115200);
-    while (!Serial);
+    while (!Serial)
+        ;
     printf("start\n");
 
     configureQSPI();
@@ -281,7 +262,7 @@ void setup()
 
     pinMode(QSPI_SO2, INPUT);
 
-    //print current status register+check if WEL can be set
+    // print current status register+check if WEL can be set
     printf("---- current status ----\n");
     readStatusRegister();
 
@@ -291,11 +272,11 @@ void setup()
     _writeEnable();
     readStatusRegister();
 
-    //reset flash protection
+    // reset flash protection
     printf("---- reset flash protection ----\n");
     resetFlashProtection();
 
-    //verify
+    // verify
     printf("---- verify status register ----\n");
     readStatusRegister();
 
